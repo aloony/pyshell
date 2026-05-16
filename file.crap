@@ -1,4 +1,3 @@
-test
-other_test
+test "abc" "tribc" "fibc"
+some_other_test
 
-some absolutely other teeeest

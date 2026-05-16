@@ -1,18 +1,35 @@
 #!/usr/bin/env python
 from pathlib import Path
 from enum import Enum
+import tokens
 import pudb
+import rich
+
+
+def inspect(obj):
+    rich.inspect(obj, all=True)
+
+
+class EOF(Exception): ...
+
+
+class EOL(Exception): ...
+
+
+class SubstringNotFound(Exception): ...
 
 
 class Command:
-    def __init__(self, name: str):
+    def __init__(self, name: str, args: list[str]):
         self.name = name
+        self.args = args
 
     def __repr__(self):
-        return self.name
+        arg_string = (" " + " ".join(self.args)) if self.args else ""
+        return f"{self.name}{arg_string}"
 
 
-class File:
+class Reader:
     def __init__(self, text: str):
         self.text = text
         self.i = 0
@@ -23,19 +40,26 @@ class File:
         if self.i == len(self.text):
             raise EOF()
 
-    def read(self, start: int = 0, end: int = 0) -> str:
+    def read(self, start: int = 0, end: int = 0, advance=True) -> str:
         start = start or self.i
         end = end or self.i + 1
+        if advance:
+            self.i = end
         try:
             return self.text[start:end]
         except IndexError:
             raise EOF()
 
-    def read_untill(self, sub: str, start: int) -> str:
+    def read_untill(self, sub: str, start: int = 0, end: int = 0) -> str:
         start = start or self.i
         end = self.text.find(sub, start)
+        if end == -1:
+            raise SubstringNotFound()
 
         return self.read(start, end)
+
+    def repr(self):
+        print(self.text[self.i :])
 
 
 class State(Enum):
@@ -43,42 +67,46 @@ class State(Enum):
     PARSING_COMMAND = 2
 
 
-class Parser:
-    @staticmethod
-    def parse_command(file: File):
-        def 
+class CommandParser:
+    @classmethod
+    def parse_name(cls, reader: Reader) -> str:
+        try:
+            return reader.read_untill(" ")
+        except SubstringNotFound:
+            return reader.read_untill("\n")
 
-        command_name = ""
+    @classmethod
+    def parse_args(cls, reader: Reader) -> list[str]:
+        args = []
+        arg_reader = Reader(reader.read_untill("\n").strip() + " ")
+        try:
+            while True:
+                arg = arg_reader.read_untill(" ")
+                args.append(arg)
+                arg_reader.step()
+        except SubstringNotFound:
+            ...
+        except EOF:
+            ...
 
-        while True:
-            char = file.read()
-            if char.isidentifier():
-                command_name += char
-                file.step()
-            else:
-                break
+        return args
 
-        return Command(command_name)
-
-
-
-class EOF(Exception): ...
+    @classmethod
+    def parse_command(cls, reader: Reader) -> Command:
+        name = cls.parse_name(reader)
+        args = cls.parse_args(reader)
+        return Command(name, args)
 
 
 def make_stack(filepath: Path = Path("file.crap")):
     stack = []
-    file = File(filepath.read_text(encoding="utf-8"))
+    lines = filepath.read_text().strip().splitlines()
 
-    try:
-        while True:
-            char = file.read()
-            if char.isidentifier():
-                stack.append(Parser.parse_command(file))
-            file.step()
-    except EOF:
-        ...
+    for line in lines:
+        parsed = tokens.command.parse_string(line)
+        stack.append(Command(parsed.name, parsed.args))
 
-    print(stack)
+    print(f'"{stack}"')
 
 
 make_stack()
