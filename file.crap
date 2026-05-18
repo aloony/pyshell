@@ -1,3 +1,3 @@
-test "abc" "tribc" "fibc"
+echo 123
 some_other_test
 

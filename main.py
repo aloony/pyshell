@@ -4,6 +4,8 @@ from enum import Enum
 import tokens
 import pudb
 import rich
+from builtin_commands import builtin_commands
+import subprocess as sp
 
 
 def inspect(obj):
@@ -25,8 +27,12 @@ class Command:
         self.args = args
 
     def __repr__(self):
-        arg_string = (" " + " ".join(self.args)) if self.args else ""
+        args = [f'"{arg}"' for arg in self.args]
+        arg_string = (" " + " ".join(args)) if args else ""
         return f"{self.name}{arg_string}"
+
+    def get_cmd(self):
+        return self.__repr__
 
 
 class Reader:
@@ -98,7 +104,7 @@ class CommandParser:
         return Command(name, args)
 
 
-def make_stack(filepath: Path = Path("file.crap")):
+def make_stack(filepath: Path = Path("file.crap")) -> list[Command]:
     stack = []
     lines = filepath.read_text().strip().splitlines()
 
@@ -106,7 +112,16 @@ def make_stack(filepath: Path = Path("file.crap")):
         parsed = tokens.command.parse_string(line)
         stack.append(Command(parsed.name, parsed.args))
 
-    print(f'"{stack}"')
+    # print(f'Stack: "{stack}"')
+    return stack
 
 
-make_stack()
+def run(stack: list[Command]):
+    for command in stack:
+        if command.name not in builtin_commands:
+            sp.run(str(command), shell=True)
+        else:
+            builtin_commands[command.name]()
+
+
+run(make_stack())
