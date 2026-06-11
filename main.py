@@ -1,127 +1,66 @@
 #!/usr/bin/env python
-from pathlib import Path
-from enum import Enum
-import tokens
-import pudb
-import rich
-from builtin_commands import builtin_commands
 import subprocess as sp
+import pudb
+import os
+from rich import inspect
+from pathlib import Path
+from pyparsing import (
+    Word,
+    alphas,
+    alphanums,
+    OneOrMore,
+    Optional,
+    QuotedString,
+    Combine,
+    ZeroOrMore,
+    Group,
+    Suppress,
+    LineEnd,
+)
+
+env = os.environ
+shell_env = {}
+
+# General
+identifier = Word(alphas + "_", alphanums + "_")
+
+# Command
+command_arg = QuotedString('"') | Combine(Optional("$") + Word(alphanums + "_-./"))
+command = Group(
+    identifier("name")
+    + ZeroOrMore(command_arg, default=[])("args")
+    + Suppress(LineEnd())
+)("command")
+
+# Variable
+variable_setting = Group(
+    Suppress("$") + identifier("name") + Suppress("=") + QuotedString('"')("value")
+)("variable_setting")
+
+# Expression
+expression = variable_setting | command
 
 
-def inspect(obj):
-    rich.inspect(obj, all=True)
+text = Path("./file.crap").read_text().strip()
 
+i = 1
+pudb.set_trace()
+while True:
+    _, start, end = next(expression.scan_string(text, max_matches=1))
+    parsed = expression.parse_string(text[start:end], parse_all=True)
+    text = text[end:]
 
-class EOF(Exception): ...
-
-
-class EOL(Exception): ...
-
-
-class SubstringNotFound(Exception): ...
-
-
-class Command:
-    def __init__(self, name: str, args: list[str]):
-        self.name = name
-        self.args = args
-
-    def __repr__(self):
-        args = [f'"{arg}"' for arg in self.args]
-        arg_string = (" " + " ".join(args)) if args else ""
-        return f"{self.name}{arg_string}"
-
-    def get_cmd(self):
-        return self.__repr__
-
-
-class Reader:
-    def __init__(self, text: str):
-        self.text = text
-        self.i = 0
-
-    def step(self, n: int = 1):
-        self.i += n
-
-        if self.i == len(self.text):
-            raise EOF()
-
-    def read(self, start: int = 0, end: int = 0, advance=True) -> str:
-        start = start or self.i
-        end = end or self.i + 1
-        if advance:
-            self.i = end
-        try:
-            return self.text[start:end]
-        except IndexError:
-            raise EOF()
-
-    def read_untill(self, sub: str, start: int = 0, end: int = 0) -> str:
-        start = start or self.i
-        end = self.text.find(sub, start)
-        if end == -1:
-            raise SubstringNotFound()
-
-        return self.read(start, end)
-
-    def repr(self):
-        print(self.text[self.i :])
-
-
-class State(Enum):
-    ANY = 1
-    PARSING_COMMAND = 2
-
-
-class CommandParser:
-    @classmethod
-    def parse_name(cls, reader: Reader) -> str:
-        try:
-            return reader.read_untill(" ")
-        except SubstringNotFound:
-            return reader.read_untill("\n")
-
-    @classmethod
-    def parse_args(cls, reader: Reader) -> list[str]:
-        args = []
-        arg_reader = Reader(reader.read_untill("\n").strip() + " ")
-        try:
-            while True:
-                arg = arg_reader.read_untill(" ")
-                args.append(arg)
-                arg_reader.step()
-        except SubstringNotFound:
-            ...
-        except EOF:
-            ...
-
-        return args
-
-    @classmethod
-    def parse_command(cls, reader: Reader) -> Command:
-        name = cls.parse_name(reader)
-        args = cls.parse_args(reader)
-        return Command(name, args)
-
-
-def make_stack(filepath: Path = Path("file.crap")) -> list[Command]:
-    stack = []
-    lines = filepath.read_text().strip().splitlines()
-
-    for line in lines:
-        parsed = tokens.command.parse_string(line)
-        stack.append(Command(parsed.name, parsed.args))
-
-    # print(f'Stack: "{stack}"')
-    return stack
-
-
-def run(stack: list[Command]):
-    for command in stack:
-        if command.name not in builtin_commands:
-            sp.run(str(command), shell=True)
-        else:
-            builtin_commands[command.name]()
-
-
-run(make_stack())
+    if "command" in parsed:
+        command = parsed.command
+        cmd = command.name + " " + " ".join(command.args)
+        print(cmd)
+        result = sp.run(
+            cmd, text=True, capture_output=True, shell=True, env={**env, **shell_env}
+        )
+        output = result.stdout or result.stderr
+        print(f"{i}: {output.strip()}")
+    elif "variable_setting" in parsed:
+        name, value = parsed.variable_setting.name, parsed.variable_setting.value
+        shell_env[name] = value
+    i += 1
+    print("-------")
