@@ -27,9 +27,7 @@ identifier = Word(alphas + "_", alphanums + "_")
 # Command
 command_arg = QuotedString('"') | Combine(Optional("$") + Word(alphanums + "_-./"))
 command = Group(
-    identifier("name")
-    + ZeroOrMore(command_arg, default=[])("args")
-    + Suppress(LineEnd())
+    identifier("name") + ZeroOrMore(command_arg, stop_on=LineEnd())("args")
 )("command")
 
 # Variable
@@ -44,16 +42,17 @@ expression = variable_setting | command
 text = Path("./file.crap").read_text().strip()
 
 i = 1
-pudb.set_trace()
 while True:
-    _, start, end = next(expression.scan_string(text, max_matches=1))
+    try:
+        _, start, end = next(expression.scan_string(text, max_matches=1))
+    except StopIteration:
+        exit()
     parsed = expression.parse_string(text[start:end], parse_all=True)
     text = text[end:]
 
     if "command" in parsed:
         command = parsed.command
         cmd = command.name + " " + " ".join(command.args)
-        print(cmd)
         result = sp.run(
             cmd, text=True, capture_output=True, shell=True, env={**env, **shell_env}
         )
@@ -63,4 +62,3 @@ while True:
         name, value = parsed.variable_setting.name, parsed.variable_setting.value
         shell_env[name] = value
     i += 1
-    print("-------")
