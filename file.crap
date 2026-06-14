@@ -1,3 +1,1 @@
-echo $SHELL
-$SHELL = "some random shell"
-echo $SHELL
+echo "123";

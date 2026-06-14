@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 import subprocess as sp
-import pudb
 import os
-from rich import inspect
+from contextlib import suppress as suppress_exception
+from utils import *
 from pathlib import Path
 from pyparsing import (
     Word,
+    ParseResults,
     alphas,
+    Keyword,
+    StringStart,
     alphanums,
     OneOrMore,
     Optional,
@@ -23,42 +26,25 @@ shell_env = {}
 
 # General
 identifier = Word(alphas + "_", alphanums + "_")
+endline = Suppress(Keyword(";"))
 
 # Command
-command_arg = QuotedString('"') | Combine(Optional("$") + Word(alphanums + "_-./"))
+command_arg = QuotedString('"') | QuotedString("'")
 command = Group(
-    identifier("name") + ZeroOrMore(command_arg, stop_on=LineEnd())("args")
+    StringStart() + identifier("name") + ZeroOrMore(command_arg)("args") + endline
 )("command")
-
-# Variable
-variable_setting = Group(
-    Suppress("$") + identifier("name") + Suppress("=") + QuotedString('"')("value")
-)("variable_setting")
-
-# Expression
-expression = variable_setting | command
 
 
 text = Path("./file.crap").read_text().strip()
 
-i = 1
 while True:
     try:
-        _, start, end = next(expression.scan_string(text, max_matches=1))
+        parsed, start, end = next(command.scan_string(text, max_matches=1))
+        text = text[end:]
+
+        cmd = [parsed.command.name, *parsed.command.args]
+        result = sp.run(cmd, capture_output=True)
+        inspect(result)
+
     except StopIteration:
         exit()
-    parsed = expression.parse_string(text[start:end], parse_all=True)
-    text = text[end:]
-
-    if "command" in parsed:
-        command = parsed.command
-        cmd = command.name + " " + " ".join(command.args)
-        result = sp.run(
-            cmd, text=True, capture_output=True, shell=True, env={**env, **shell_env}
-        )
-        output = result.stdout or result.stderr
-        print(f"{i}: {output.strip()}")
-    elif "variable_setting" in parsed:
-        name, value = parsed.variable_setting.name, parsed.variable_setting.value
-        shell_env[name] = value
-    i += 1
