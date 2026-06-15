@@ -2,6 +2,7 @@
 
 import subprocess as sp
 import readline
+import click
 import socket
 import getpass
 import os
@@ -87,36 +88,59 @@ def complete(text, state):
 readline.set_completer(complete)
 readline.parse_and_bind("tab: complete")
 
-last_return_code: int = 0
-clear_screen()
-while True:
-    parsed = None
-    try:
-        line = input(prompt(last_return_code))
-        if not line:
-            exit()
-        parsed, start, end = next(command.scan_string(line, max_matches=1))
-        if parsed.command.name == "exit":
-            exit()
 
-        cmd = [parsed.command.name, *parsed.command.args]
-        result = sp.run(
-            cmd,
-            capture_output=True,
-        )
-        last_return_code = result.returncode
-        output = (result.stdout or result.stderr).decode()
-        print_stdout(f"{output}")
+def shell():
+    last_return_code: int = 0
+    clear_screen()
+    while True:
+        parsed = None
+        try:
+            line = input(prompt(last_return_code))
+            if not line:
+                exit()
+            parsed, start, end = next(command.scan_string(line, max_matches=1))
+            if parsed.command.name == "exit":
+                exit()
 
-    except (FileNotFoundError, StopIteration):
-        last_return_code = 1
-        msg = None
-        if parsed:
-            msg = parsed.command.name
-        else:
-            msg = line
-        print_error(f"No such file or directory: {msg}")
-    except KeyboardInterrupt:
-        last_return_code = 0
-        print_stdout("\n")
-        continue
+            cmd = [parsed.command.name, *parsed.command.args]
+            result = sp.run(
+                cmd,
+                capture_output=True,
+            )
+            last_return_code = result.returncode
+            output = (result.stdout or result.stderr).decode()
+            print_stdout(f"{output}")
+
+        except (FileNotFoundError, StopIteration):
+            last_return_code = 1
+            msg = None
+            if parsed:
+                msg = parsed.command.name
+            else:
+                msg = line
+            print_error(f"No such file or directory: {msg}")
+        except KeyboardInterrupt:
+            last_return_code = 0
+            print_stdout("\n")
+            continue
+
+
+def exec(filepath):
+    print(filepath)
+
+
+@click.command()
+@click.argument(
+    "filepath",
+    type=click.Path(exists=True, dir_okay=False, file_okay=True),
+    required=False,
+)
+def main(filepath):
+    if filepath:
+        exec(filepath)
+    else:
+        shell()
+
+
+if __name__ == "__main__":
+    main()
