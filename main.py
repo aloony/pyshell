@@ -26,7 +26,6 @@ from pyparsing import (
     LineEnd,
 )
 
-readline.parse_and_bind('"\\C-l": clear-screen')
 
 RESET = "\033[0m"
 CYAN = "\033[36m"
@@ -35,6 +34,7 @@ GREEN = "\033[32m"
 DIM = "\033[2m"
 CLEAR_SCREEN = "\033[2J\033[H"
 CTRL_L = "\x0c"
+
 
 env = os.environ
 shell_env = {}
@@ -77,6 +77,16 @@ def print_error(msg):
     print(f"{RED}{msg}{RESET}")
 
 
+def complete(text, state):
+    matches = [m for m in os.listdir(".") if m.startswith(text)]
+    if state < len(matches):
+        return matches[state]
+    return None
+
+
+readline.set_completer(complete)
+readline.parse_and_bind("tab: complete")
+
 last_return_code: int = 0
 clear_screen()
 while True:
@@ -84,7 +94,7 @@ while True:
     try:
         line = input(prompt(last_return_code))
         if not line:
-            break
+            exit()
         parsed, start, end = next(command.scan_string(line, max_matches=1))
         if parsed.command.name == "exit":
             exit()
