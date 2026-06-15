@@ -1,1 +1,11 @@
-echo "123";
+echo "123 string\"asdasdasd\" $bb baba"
+
+test "somethngdfsdfkjsdfhskdjfh123kjhjdsfhf"
+
+if abc {
+	dbc
+}
+
+for i in dbc {
+	something "something"
+}

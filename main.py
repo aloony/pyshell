@@ -8,15 +8,17 @@ import getpass
 import os
 import sys
 from contextlib import suppress as suppress_exception
-from utils import *
+from utils import inspect
 from pathlib import Path
 from pyparsing import (
     Word,
     ParseResults,
     alphas,
+    nums,
     Literal,
     Keyword,
     StringStart,
+    LineStart,
     alphanums,
     OneOrMore,
     Optional,
@@ -126,7 +128,53 @@ def shell():
 
 
 def exec(filepath):
-    print(filepath)
+    file = Path(filepath)
+
+    quoted_string = QuotedString(
+        '"', esc_char="\\", unquote_results=False
+    ) | QuotedString("'", esc_char="\\", unquote_results=False)
+    literal = Word(alphas + "_", alphanums + "_")
+    number = Word(nums)
+    opening_bracket = Literal("{")
+    closing_bracket = Literal("}")
+    true = Literal("true")
+    false = Literal("false")
+    semicolon = Suppress(Literal(";"))
+    if_literal = Literal("if")
+    for_literal = Literal("for")
+    is_equal = Literal("==")
+    is_literal = Literal("is")
+    in_literal = Literal("in")
+    else_literal = Literal("else")
+    colon = Literal(":")("colon")
+    line_start = Suppress(LineStart())
+    line_end = Suppress(LineEnd())
+    ellipsis = Literal("...")
+
+    command = Group(literal("name") + ZeroOrMore(quoted_string)("args") + line_end)
+    condition = Group(
+        if_literal
+        + literal
+        + opening_bracket
+        + ZeroOrMore(command)("commands")
+        + closing_bracket
+    )
+    for_loop = Group(
+        for_literal
+        + literal
+        + in_literal
+        + literal
+        + opening_bracket
+        + ZeroOrMore(command)("commands")
+        + closing_bracket
+    )
+
+    lexer = ZeroOrMore(command | condition | for_loop)
+
+    tokens = lexer.parseString(file.read_text().strip(), parse_all=True)
+    print(tokens)
+    # for t in tokens:
+    #     inspect(t)
 
 
 @click.command()
