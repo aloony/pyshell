@@ -2,6 +2,8 @@
 
 import subprocess as sp
 import readline
+import socket
+import getpass
 import os
 import sys
 from contextlib import suppress as suppress_exception
@@ -61,11 +63,9 @@ def print_stdout(s: str):
 
 def prompt(last_return_code):
     if not last_return_code:
-        msg = f"{CYAN}{os.getcwd()}{RESET}{DIM}:{RESET} "
+        msg = f"{GREEN}{getpass.getuser()}@{socket.gethostname()}{RESET} {CYAN}{os.getcwd()}{RESET}{DIM}:{RESET} "
     else:
-        msg = (
-            f"{CYAN}{os.getcwd()}{RESET} {RED}[{last_return_code}]{RESET}{DIM}:{RESET} "
-        )
+        msg = f"{GREEN}{getpass.getuser()}@{socket.gethostname()}{RESET} {CYAN}{os.getcwd()}{RESET} {RED}[{last_return_code}]{RESET}{DIM}:{RESET} "
     return msg
 
 
