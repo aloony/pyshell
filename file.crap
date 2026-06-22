@@ -1,19 +1,7 @@
-echo "123 stringasdasdasd $bb baba"
+x = true
 
-test "somethngdfsdfkjsdfhskdjfh123kjhjdsfhf" 
+if x {
+	sh(echo 123)
+}
 
-if something
-	then amt_hing
-end if
-
-for i in list
-	do action
-end for
-
-for i in list
-	for j in another_list
-		if 123
-			test
-		end if
-	end for
-end for
+y = false

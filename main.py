@@ -1,80 +1,66 @@
+from cursor import Cursor
+from dataclasses import dataclass
 from pathlib import Path
+from tokenizer.tokenizer import Tokenizer, Token
 
-text = Path("file.crap").read_text().strip()
-# text += "\n"
+text = Path("file.crap").read_text().strip() + "\n"
+
+input_tokens = [
+    Token(name="eq", pattern=r"="),
+    Token(name="newline", pattern=r"\n"),
+    Token(name="true", pattern=r"\btrue\b"),
+    Token(name="if", pattern=r"\bif\b"),
+    Token(name="oparen", pattern=r"\("),
+    Token(name="cparen", pattern=r"\)"),
+    Token(name="false", pattern=r"\bfalse\b"),
+    Token(name="lbracket", pattern=r"\{"),
+    Token(name="rbracket", pattern=r"\}"),
+    Token(name="colon", pattern=r":"),
+    Token(name="dollar", pattern=r"\$"),
+    Token(name="ident", pattern=r"\w+"),
+]
+
+tokenizer = Tokenizer(text, input_tokens)
+tokens = tokenizer.tokenize()
 
 
-class Tokenizer:
-    def __init__(self, text):
-        self.text = text
-        self.pos = -1
+@dataclass
+class Assignment:
+    ident: str
+    value: bool
 
-    def peek(self):
-        if self.pos + 1 == len(self.text):
-            return None
-        return self.text[self.pos + 1]
 
-    def advance(self):
-        self.pos += 1
+class Parser(Cursor):
+    ast: list
 
-    def tokenize(self):
-        tokens = []
-
-        is_string = False
-        word = ""
-
-        def w():
-            nonlocal word
-            nonlocal tokens
-            nonlocal is_string
-            if word:
-                tokens.append(word)
-                is_string = False
-            word = ""
+    def parse(self):
+        self.ast = []
 
         while True:
-            char = self.peek()
-            if char is None:
-                break
-            elif char in " \t":
-                if is_string:
-                    word += char
-                else:
-                    w()
-            elif char == "\n":
-                w()
-                tokens.append("\n")
-            elif char == "+":
-                w()
-                tokens.append(char)
-            elif char == "-":
-                w()
-                tokens.append(char)
-            elif char == '"':
-                if is_string:
-                    word += char
-                    w()
-                else:
-                    is_string = True
-                    word += char
-            elif char == "|":
-                w()
-                tokens.append("|")
-            elif char == "{":
-                w()
-                tokens.append("{")
-            elif char == "}":
-                w()
-                tokens.append("}")
-            else:
-                word += char
+            token: Token = self.peek()
+
+            if token.name == "newline":
+                ...
+            elif token.name == "ident":
+                self.assignment()
+            elif token.name == "if":
+                ...
             self.advance()
-        w()
 
-        tokens.append("EOF")
-        return tokens
+        return self.ast
+
+    def block(self): ...
+
+    def for_loop(self): ...
+
+    def in_cond(self): ...
+
+    def assignment(self):
+
+        ident = self.advance()
+        eq = self.advance()
+        val = self.advance()
 
 
-tokenizer = Tokenizer(text)
-tokens = tokenizer.tokenize()
-print(tokens)
+parser = Parser(tokens)
+ast = parser.parse()
