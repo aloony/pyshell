@@ -5,14 +5,19 @@ from tokenizer.tokenizer import Tokenizer, Token
 
 text = Path("file.crap").read_text().strip() + "\n"
 
+
+def bool_parser(bool_string) -> bool:
+    return "true" in bool_string
+
+
 input_tokens = [
     Token(name="eq", pattern=r"="),
     Token(name="newline", pattern=r"\n"),
-    Token(name="true", pattern=r"\btrue\b"),
+    Token(name="true", pattern=r"\btrue\b", parser=bool_parser),
     Token(name="if", pattern=r"\bif\b"),
     Token(name="oparen", pattern=r"\("),
     Token(name="cparen", pattern=r"\)"),
-    Token(name="false", pattern=r"\bfalse\b"),
+    Token(name="false", pattern=r"\bfalse\b", parser=bool_parser),
     Token(name="lbracket", pattern=r"\{"),
     Token(name="rbracket", pattern=r"\}"),
     Token(name="colon", pattern=r":"),
@@ -22,6 +27,7 @@ input_tokens = [
 
 tokenizer = Tokenizer(text, input_tokens)
 tokens = tokenizer.tokenize()
+print(tokens)
 
 
 @dataclass
@@ -41,8 +47,10 @@ class Parser(Cursor):
 
             if token.name == "newline":
                 ...
+            elif token.name == "eof":
+                break
             elif token.name == "ident":
-                self.assignment()
+                self.ast.append(self.assignment())
             elif token.name == "if":
                 ...
             self.advance()
@@ -53,14 +61,19 @@ class Parser(Cursor):
 
     def for_loop(self): ...
 
-    def in_cond(self): ...
+    def if_cond(self): ...
 
     def assignment(self):
-
         ident = self.advance()
-        eq = self.advance()
-        val = self.advance()
+        _eq = self.advance()
+        value = self.advance()
+
+        assert ident.name
+
+        return Assignment(ident=ident.image, value=value.parsed)
 
 
 parser = Parser(tokens)
 ast = parser.parse()
+print("--------------")
+print(ast)

@@ -1,12 +1,16 @@
 import re
 from dataclasses import dataclass
+from collections.abc import Callable
+from typing import Any
 
 
 @dataclass
 class Token:
     name: str
-    pattern: str
+    pattern: str | None = None
     image: str | None = None
+    parser: Callable[[str], Any] | None = None
+    parsed: Any | None = None
 
     def __repr__(self):
         return (
@@ -27,8 +31,19 @@ class Tokenizer:
 
         for match in re.finditer(master_pattern, self.text):
             rule = self.input_tokens[match.lastgroup]  # type: ignore
-            output_tokens.append(
-                Token(name=rule.name, pattern=rule.pattern, image=match.group())
-            )
+            token: Token
+
+            if rule.parser:
+                token = Token(
+                    name=rule.name,
+                    pattern=rule.pattern,
+                    image=match.group(),
+                    parsed=rule.parser(match.group()),
+                    parser=rule.parser,
+                )
+            else:
+                token = Token(name=rule.name, pattern=rule.pattern, image=match.group())
+            output_tokens.append(token)
+        output_tokens.append(Token(name="eof"))
 
         return output_tokens

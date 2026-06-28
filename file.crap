@@ -1,7 +1,7 @@
 x = true
 
-if x {
-	sh(echo 123)
-}
-
 y = false
+
+if x {
+	sh(123)
+}
